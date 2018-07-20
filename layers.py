@@ -53,7 +53,7 @@ def self_attention(inputs, channel_factor=8, name='self_attention'):
                              filters=num_filters)
         h = tf.layers.conv1d(inputs,
                              kernel_size=1,
-                             filters=num_filters)
+                             filters=inputs.shape[-1])
 
         beta = tf.nn.softmax(tf.matmul(f, g, transpose_b=True))
         o = tf.matmul(beta, h)
