@@ -87,9 +87,9 @@ class Generator:
         
         gen_inputs = tf.reshape(gen_inputs, [gen_inputs.shape[0], 4, 4, -1])
         layers = [tf.layers.conv2d(gen_inputs,
-                                  kernel_size=4,
-                                  filters=self.filter_base,
-                                  name='project')]
+                                   kernel_size=4,
+                                   filters=self.filter_base,
+                                   name='project')]
         
         for i in range(self.num_layers - 2):
             layers.append(ly.up_conv(layers[-1],
@@ -98,7 +98,7 @@ class Generator:
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
-                                     name='down_conv_$d' % i))
+                                     name='up_conv_$d' % i))
             
         layers.append(ly.self_attention(layers[-1], 8))
         
@@ -109,18 +109,54 @@ class Generator:
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
-                                     name='down_conv_$d' % i))
+                                     name='up_conv_$d' % i))
             
         return tf.layers.conv2d(layers[-1],
-                               kernel_size=1,
-                               filters=self.num_channels,
-                               activation=tf.nn.tanh,
-                               name='output')
+                                kernel_size=1,
+                                filters=self.num_channels,
+                                activation=tf.nn.tanh,
+                                name='output')
 
 
 class Discriminator:
     def __init__(self, hparams):
-        pass
+        self.num_layers = hparams.d_num_layers
+        self.kernel_size = hparams.d_kernel_size
+        self.filter_base = hparams.d_filter_base
+        self.activation = hparams.d_activation
+        self.norm =  hparams.d_norm
 
     def build(self, gen_inputs, reals):
-        pass
+        initializer = None
+
+        layers = [tf.layers.conv2d(gen_inputs,
+                                   kernel_size=self.kernel_size,
+                                   filters=self.filter_base,
+                                   name='conv_0')]
+        
+        for i in range(self.num_layers - 2):
+            layers.append(ly.down_conv(layers[-1],
+                                       kernel_size=self.kernel_size,
+                                       filters=self.filter_base ** (i + 1),
+                                       activation=self.activation,
+                                       norm=self.norm,
+                                       initializer=initializer,
+                                       name='down_conv_$d' % i))
+            
+        layers.append(ly.self_attention(layers[-1], 8))
+        
+        for i in range(self.num_layers - 2, self.num_layers):
+            layers.append(ly.down_conv(layers[-1],
+                                       kernel_size=self.kernel_size,
+                                       filters=self.filter_base ** (i + 1),
+                                       activation=self.activation,
+                                       norm=self.norm,
+                                       initializer=initializer,
+                                       name='down_conv_$d' % i))
+            
+        layers.append(ly.self_attention(layers[-1], 8))
+            
+        return tf.layers.conv2d(layers[-1],
+                                kernel_size=1,
+                                filters=1,
+                                name='output')
