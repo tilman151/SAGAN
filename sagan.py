@@ -1,7 +1,7 @@
 import tensorflow as tf
 tfgan = tf.contrib.gan
 
-import layers
+import layers as ly
 
 
 class SAGAN:
@@ -75,10 +75,47 @@ class SAGAN:
 
 class Generator:
     def __init__(self, hparams):
-        pass
+        self.num_layers = hparams.g_num_layers
+        self.kernel_size = hparams.g_kernel_size
+        self.filter_base = hparams.g_filter_base
+        self.activation = hparams.g_activation
+        self.norm =  hparams.g_norm
+        self.num_channels = hparams.num_channels
 
     def build(self, gen_inputs):
-        pass
+        initializer = None
+        
+        gen_inputs = tf.reshape(gen_inputs, [gen_inputs.shape[0], 4, 4, -1])
+        layers = [tf.layers.conv2d(gen_inputs,
+                                  kernel_size=4,
+                                  filters=self.filter_base,
+                                  name='project')]
+        
+        for i in range(self.num_layers - 2):
+            layers.append(ly.up_conv(layers[-1],
+                                     kernel_size=self.kernel_size,
+                                     filters=self.filter_base ** (i + 1),
+                                     activation=self.activation,
+                                     norm=self.norm,
+                                     initializer=initializer,
+                                     name='down_conv_$d' % i))
+            
+        layers.append(ly.self_attention(layers[-1], 8))
+        
+        for i in range(self.num_layers - 2, self.num_layers):
+            layers.append(ly.up_conv(layers[-1],
+                                     kernel_size=self.kernel_size,
+                                     filters=self.filter_base ** (i + 1),
+                                     activation=self.activation,
+                                     norm=self.norm,
+                                     initializer=initializer,
+                                     name='down_conv_$d' % i))
+            
+        return tf.layers.conv2d(layers[-1],
+                               kernel_size=1,
+                               filters=self.num_channels,
+                               activation=tf.nn.tanh,
+                               name='output')
 
 
 class Discriminator:
