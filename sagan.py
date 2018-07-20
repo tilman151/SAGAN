@@ -43,8 +43,12 @@ class SAGAN:
     @staticmethod
     def _build_train_ops(gen_loss, dis_loss, global_step):
         with tf.name_scope('train_ops'):
-            gen_optim = tf.train.AdamOptimizer()
-            dis_optim = tf.train.AdamOptimizer()
+            gen_optim = tf.train.AdamOptimizer(learning_rate=0.0001,
+                                               beta1=0.0,
+                                               beta2=0.9)
+            dis_optim = tf.train.AdamOptimizer(learning_rate=0.0004,
+                                               beta1=0.0,
+                                               beta2=0.9)
 
             gen_vars = tf.trainable_variables('Generator')
             dis_vars = tf.trainable_variables('Discriminator')
