@@ -84,17 +84,18 @@ class Generator:
 
     def build(self, gen_inputs):
         initializer = None
+        num_filters = self.filter_base * (2 ** self.num_layers)
         
         gen_inputs = tf.reshape(gen_inputs, [gen_inputs.shape[0], 4, 4, -1])
         layers = [tf.layers.conv2d(gen_inputs,
                                    kernel_size=4,
-                                   filters=self.filter_base,
+                                   filters=num_filters,
                                    name='project')]
         
         for i in range(self.num_layers - 2):
             layers.append(ly.up_conv(layers[-1],
                                      kernel_size=self.kernel_size,
-                                     filters=self.filter_base ** (i + 1),
+                                     filters=num_layers // (2 ** (i + 1)),
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
@@ -105,7 +106,7 @@ class Generator:
         for i in range(self.num_layers - 2, self.num_layers):
             layers.append(ly.up_conv(layers[-1],
                                      kernel_size=self.kernel_size,
-                                     filters=self.filter_base ** (i + 1),
+                                     filters=num_layers // (2 ** (i + 1)),
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
