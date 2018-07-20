@@ -6,7 +6,7 @@ def down_conv(inputs, kernel_size, filters, activation=None, norm=None, initiali
         layer = tf.layers.conv2d(inputs,
                                  kernel_size=kernel_size,
                                  filters=filters,
-                                 stride=2,
+                                 strides=2,
                                  kernel_initializer=initializer)
 
         if norm is not None:
@@ -20,11 +20,12 @@ def down_conv(inputs, kernel_size, filters, activation=None, norm=None, initiali
 
 def up_conv(inputs, kernel_size, filters, activation=None, norm=None, initializer=None, name='up_conv'):
     with tf.variable_scope(name):
-        layer = tf.image.resize_nearest_neighbor(inputs, inputs.shape * 2)
+        layer = tf.image.resize_nearest_neighbor(inputs, [inputs.shape[1].value * 2] * 2)
 
         layer = tf.layers.conv2d(layer,
                                  kernel_size=kernel_size,
                                  filters=filters,
+                                 padding='same',
                                  kernel_initializer=initializer)
 
         if norm is not None:
@@ -43,15 +44,15 @@ def flatten(inputs):
 def self_attention(inputs, channel_factor=8, name='self_attention'):
     num_filters = inputs.shape[-1].value // channel_factor
     with tf.variable_scope(name):
-        inputs = flatten(inputs)
+        flat_inputs = flatten(inputs)
 
-        f = tf.layers.conv1d(inputs,
+        f = tf.layers.conv1d(flat_inputs,
                              kernel_size=1,
                              filters=num_filters)
-        g = tf.layers.conv1d(inputs,
+        g = tf.layers.conv1d(flat_inputs,
                              kernel_size=1,
                              filters=num_filters)
-        h = tf.layers.conv1d(inputs,
+        h = tf.layers.conv1d(flat_inputs,
                              kernel_size=1,
                              filters=inputs.shape[-1])
 
@@ -59,6 +60,7 @@ def self_attention(inputs, channel_factor=8, name='self_attention'):
         o = tf.matmul(beta, h)
 
         gamma = tf.get_variable('gamma', [], initializer=tf.zeros_initializer)
-        y = gamma * o + inputs
+        y = gamma * o + flat_inputs
+        y = tf.reshape(y, inputs.shape)
 
     return y

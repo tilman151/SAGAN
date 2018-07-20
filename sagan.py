@@ -16,6 +16,8 @@ class SAGAN:
                                 reals,
                                 gen_inputs)
 
+        self.generated = model.generated_data
+
         self.gen_loss, self.dis_loss = self._build_loss(model)
 
         self.gen_train, self.dis_train = self._build_train_ops(self.gen_loss,
@@ -27,14 +29,14 @@ class SAGAN:
     @staticmethod
     def _build_loss(model):
         with tf.name_scope('hinge_loss'):
-            real_loss = tf.minimum(0, model.discriminator_real_outputs - 1)
-            fake_loss = tf.minimum(0, -model.discriminator_fake_outputs - 1)
+            real_loss = tf.minimum(0.0, model.discriminator_real_outputs - 1.0)
+            fake_loss = tf.minimum(0.0, -model.discriminator_gen_outputs - 1.0)
             dis_loss = tf.reduce_mean(-real_loss - fake_loss)
 
-            gen_loss = tf.reduce_mean(-model.discriminator_fake_outputs)
+            gen_loss = tf.reduce_mean(-model.discriminator_gen_outputs)
 
-            tf.summary.scalar('dis_real_loss', real_loss)
-            tf.summary.scalar('dis_fake_loss', fake_loss)
+            tf.summary.scalar('dis_real_loss', tf.reduce_mean(real_loss))
+            tf.summary.scalar('dis_fake_loss', tf.reduce_mean(fake_loss))
             tf.summary.scalar('dis_loss', dis_loss)
             tf.summary.scalar('gen_loss', gen_loss)
 
@@ -70,7 +72,7 @@ class SAGAN:
         return summaries, step
 
     def generate(self, sess):
-        return sess.run(self.generator.outputs)
+        return sess.run(self.generated)
 
 
 class Generator:
@@ -79,7 +81,7 @@ class Generator:
         self.kernel_size = hparams.g_kernel_size
         self.filter_base = hparams.g_filter_base
         self.activation = hparams.g_activation
-        self.norm =  hparams.g_norm
+        self.norm = hparams.g_norm
         self.num_channels = hparams.num_channels
 
     def build(self, gen_inputs):
@@ -88,34 +90,38 @@ class Generator:
         
         gen_inputs = tf.reshape(gen_inputs, [gen_inputs.shape[0], 4, 4, -1])
         layers = [tf.layers.conv2d(gen_inputs,
-                                   kernel_size=4,
+                                   kernel_size=1,
                                    filters=num_filters,
+                                   padding='same',
                                    name='project')]
         
         for i in range(self.num_layers - 2):
             layers.append(ly.up_conv(layers[-1],
                                      kernel_size=self.kernel_size,
-                                     filters=num_layers // (2 ** (i + 1)),
+                                     filters=num_filters // (2 ** (i + 1)),
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
-                                     name='up_conv_$d' % i))
+                                     name='up_conv_%d' % i))
             
-        layers.append(ly.self_attention(layers[-1], 8))
+        layers.append(ly.self_attention(layers[-1], 8, 'self_attention_0'))
         
         for i in range(self.num_layers - 2, self.num_layers):
             layers.append(ly.up_conv(layers[-1],
                                      kernel_size=self.kernel_size,
-                                     filters=num_layers // (2 ** (i + 1)),
+                                     filters=num_filters // (2 ** (i + 1)),
                                      activation=self.activation,
                                      norm=self.norm,
                                      initializer=initializer,
-                                     name='up_conv_$d' % i))
-            
+                                     name='up_conv_%d' % i))
+
+        layers.append(ly.self_attention(layers[-1], 8, 'self_attention_1'))
+
         return tf.layers.conv2d(layers[-1],
                                 kernel_size=1,
                                 filters=self.num_channels,
                                 activation=tf.nn.tanh,
+                                padding='same',
                                 name='output')
 
 
@@ -125,7 +131,7 @@ class Discriminator:
         self.kernel_size = hparams.d_kernel_size
         self.filter_base = hparams.d_filter_base
         self.activation = hparams.d_activation
-        self.norm =  hparams.d_norm
+        self.norm = hparams.d_norm
 
     def build(self, gen_inputs, reals):
         initializer = None
@@ -133,6 +139,7 @@ class Discriminator:
         layers = [tf.layers.conv2d(gen_inputs,
                                    kernel_size=self.kernel_size,
                                    filters=self.filter_base,
+                                   padding='same',
                                    name='conv_0')]
         
         for i in range(self.num_layers - 2):
@@ -142,9 +149,9 @@ class Discriminator:
                                        activation=self.activation,
                                        norm=self.norm,
                                        initializer=initializer,
-                                       name='down_conv_$d' % i))
-            
-        layers.append(ly.self_attention(layers[-1], 8))
+                                       name='down_conv_%d' % i))
+
+        layers.append(ly.self_attention(layers[-1], 8, 'self_attention_0'))
         
         for i in range(self.num_layers - 2, self.num_layers):
             layers.append(ly.down_conv(layers[-1],
@@ -153,11 +160,12 @@ class Discriminator:
                                        activation=self.activation,
                                        norm=self.norm,
                                        initializer=initializer,
-                                       name='down_conv_$d' % i))
-            
-        layers.append(ly.self_attention(layers[-1], 8))
+                                       name='down_conv_%d' % i))
+
+        layers.append(ly.self_attention(layers[-1], 8, 'self_attention_1'))
             
         return tf.layers.conv2d(layers[-1],
                                 kernel_size=1,
                                 filters=1,
+                                padding='same',
                                 name='output')
