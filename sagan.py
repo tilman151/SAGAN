@@ -16,7 +16,7 @@ class SAGAN:
                                 reals,
                                 gen_inputs)
 
-        self.generated = model.generated_data
+        self.gen_data = self._denorm(model.generated_data)
 
         self.gen_loss, self.dis_loss = self._build_loss(model)
 
@@ -25,6 +25,16 @@ class SAGAN:
                                                                self.global_step)
 
         self.summaries = tf.summary.merge_all()
+
+    @staticmethod
+    def _denorm(img):
+        with tf.name_scope('denorm'):
+            img -= tf.reduce_min(img, [1, 2], keepdims=True)
+            img /= tf.reduce_max(img, [1, 2], keepdims=True)
+            img *= 255
+            img = tf.cast(img, tf.uint8)
+
+        return img
 
     @staticmethod
     def _build_loss(model):
@@ -72,7 +82,7 @@ class SAGAN:
         return summaries, step
 
     def generate(self, sess):
-        return sess.run(self.generated)
+        return sess.run(self.gen_data)
 
 
 class Generator:
