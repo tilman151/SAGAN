@@ -14,12 +14,22 @@ class ImageInputs:
         if repeat:
             dataset = dataset.repeat()
         if augment:
-            dataset = dataset.map(self._augment())
+            dataset = dataset.map(self._augment)
 
         self.dataset = dataset.batch(batch_size)
 
     def _parse(self, serialized):
-        pass
+        features = {'image': tf.FixedLenFeature([], tf.string),
+                    'shape': tf.FixedLenFeature([3], tf.int64)}
+
+        example = tf.parse_single_example(serialized, features)
+
+        image = tf.decode_raw(example['image'], tf.uint8)
+        image = tf.reshape(image, example['shape'])
+
+        image = tf.image.per_image_standardization(tf.to_float(image))
+
+        return image
 
     def _augment(self, image):
         image = tf.image.random_flip_left_right(image)
