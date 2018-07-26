@@ -3,8 +3,9 @@ import os
 
 
 class ImageInputs:
-    def __init__(self, data_path, batch_size, repeat=True, shuffle=True, augment=True):
+    def __init__(self, data_path, batch_size, res, repeat=True, shuffle=True, augment=True):
         self.batch_size = batch_size
+        self.res = res
         self.shuffle = shuffle
 
         dataset = tf.data.TFRecordDataset(data_path)
@@ -39,4 +40,7 @@ class ImageInputs:
         return image
 
     def get_next(self, name='batch'):
-        return self.dataset.make_one_shot_iterator().get_next(name)
+        images = self.dataset.make_one_shot_iterator().get_next(name)
+        images.set_shape([self.batch_size, self.res, self.res, 3])
+
+        return images
