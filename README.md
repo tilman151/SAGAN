@@ -1,4 +1,4 @@
 # SAGAN
 TensorFlow implementation of Self Attention GAN
 
-Progress: Implemented SAGAN class and generator/discriminator stubs (code untested)
+Progress: SAGAN works on dummy data; working on input pipeline
